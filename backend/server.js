@@ -5,7 +5,7 @@ const Tesseract = require('tesseract.js');
 
 const app = express();
 app.use(cors());
-app.use(express.json()); // to parse JSON bodies
+app.use(express.json());
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -14,17 +14,23 @@ app.post('/upload', upload.single('image'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No image uploaded' });
   }
-  try {
-    // Get language code from form field, default to English if not provided
-    const lang = req.body.lang || 'eng';
 
-    // Convert image buffer to base64
+  // Debug: Log received language code
+  console.log('Received language:', req.body.lang);
+
+  try {
+    const lang = req.body.lang || 'eng'; // default English
+
+    // Convert image buffer to base64 data URI
     const imageBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-    
-    // OCR with selected language(s)
-    const result = await Tesseract.recognize(imageBase64, lang);
-    
-    console.log('Tesseract output:', result.data.text);
+
+    // Recognize text with Tesseract, loading langs from official CDN
+    const result = await Tesseract.recognize(imageBase64, lang, {
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0_best', // official traineddata CDN
+      logger: (m) => console.log(m), // log progress for debugging
+    });
+
+    console.log('Tesseract extracted text:', result.data.text);
     res.json({ text: result.data.text });
   } catch (error) {
     console.error('OCR error:', error);
