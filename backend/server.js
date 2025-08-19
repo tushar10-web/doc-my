@@ -1,50 +1,44 @@
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
-const fetch = require('node-fetch');
-const FormData = require('form-data');
+const Tesseract = require('tesseract.js');
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 app.post('/upload', upload.single('image'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image uploaded' });
+  }
+
+  // Debug: Log received language code
+  console.log('Received language:', req.body.lang);
 
   try {
-    const imageBuffer = req.file.buffer;
-    const formData = new FormData();
-    formData.append('file', imageBuffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype,
+    const lang = req.body.lang || 'eng'; // default English
+
+    // Convert image buffer to base64 data URI
+    const imageBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+    // Recognize text with Tesseract, loading langs from official CDN
+    const result = await Tesseract.recognize(imageBase64, lang, {
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0_best', // official traineddata CDN
+      logger: (m) => console.log(m), // log progress for debugging
     });
-    formData.append('language', req.body.lang || 'eng');
-    formData.append('isOverlayRequired', 'false');
 
-    const response = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        apikey: 'helloworld', // free demo API key, get your own for production
-      },
-    });
-    const data = await response.json();
-
-    if (data.IsErroredOnProcessing) {
-      return res.status(500).json({ error: data.ErrorMessage || 'OCR error' });
-    }
-
-    const extractedText = data.ParsedResults?.map(r => r.ParsedText).join('\n') || 'No text extracted';
-    res.json({ text: extractedText });
+    console.log('Tesseract extracted text:', result.data.text);
+    res.json({ text: result.data.text });
   } catch (error) {
-    console.error('OCR API error:', error);
-    res.status(500).json({ error: 'Error processing image' });
+    console.error('OCR error:', error);
+    res.status(500).json({ error: 'Error extracting text from image' });
   }
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Backend server running on port ${PORT}`);
 });
