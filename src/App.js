@@ -20,7 +20,7 @@ function App() {
     setExtractedText('');
     const formData = new FormData();
     formData.append('image', file);
-    formData.append('lang', selectedLanguage);
+    formData.append('lang', selectedLanguage); // Send selected language code
 
     try {
       const response = await fetch('https://doc-my-1.onrender.com/upload', {
@@ -77,7 +77,7 @@ function App() {
           <option value="spa">Spanish</option>
           <option value="fra">French</option>
           <option value="deu">German</option>
-          {/* Add more supported languages */}
+          {/* Add more language options as needed */}
         </select>
         <p className="upload-info">
           Please upload clear images of documents or text with good lighting and minimal blur for best results.
